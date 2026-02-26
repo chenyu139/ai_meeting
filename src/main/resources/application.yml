@@ -1,0 +1,69 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ${APP_NAME:ai-meeting-backend}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  datasource:
+    url: ${DATABASE_URL:jdbc:h2:file:./ai_meeting;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${DATABASE_USERNAME:sa}
+    password: ${DATABASE_PASSWORD:}
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379/0}
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  sql:
+    init:
+      mode: always
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: assign_uuid
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  api-prefix: ${API_PREFIX:/api/v1}
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+
+  storage:
+    mode: ${STORAGE_MODE:local}
+    local-storage-root: ${LOCAL_STORAGE_ROOT:./storage}
+    oss-endpoint: ${OSS_ENDPOINT:}
+    oss-bucket: ${OSS_BUCKET:}
+    oss-access-key-id: ${OSS_ACCESS_KEY_ID:}
+    oss-access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+    oss-sts-token: ${OSS_STS_TOKEN:}
+    oss-public-base-url: ${OSS_PUBLIC_BASE_URL:}
+
+  tingwu:
+    mode: ${TINGWU_MODE:sdk}
+    region: ${TINGWU_REGION:cn-beijing}
+    endpoint: ${TINGWU_ENDPOINT:tingwu.cn-beijing.aliyuncs.com}
+    access-key-id: ${TINGWU_ACCESS_KEY_ID:}
+    access-key-secret: ${TINGWU_ACCESS_KEY_SECRET:}
+    app-key: ${TINGWU_APP_KEY:}
+    webhook-signing-key: ${TINGWU_WEBHOOK_SIGNING_KEY:}
+    callback-base-url: ${TINGWU_CALLBACK_BASE_URL:http://localhost:8080}
+
+  knowledge:
+    search-url: ${KNOWLEDGE_SEARCH_URL:}
+    timeout-sec: ${KNOWLEDGE_SEARCH_TIMEOUT_SEC:5}
+
+  worker:
+    enabled: ${WORKER_ENABLED:true}
+    poll-interval-sec: ${WORKER_POLL_INTERVAL_SEC:10}
+    processing-scan-interval-sec: ${WORKER_PROCESSING_SCAN_INTERVAL_SEC:30}
+    task-timeout-sec: ${WORKER_TASK_TIMEOUT_SEC:120}

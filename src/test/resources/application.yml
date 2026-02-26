@@ -1,0 +1,36 @@
+spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  datasource:
+    url: jdbc:h2:mem:ai_meeting_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  data:
+    redis:
+      url: redis://localhost:6379/0
+  sql:
+    init:
+      mode: always
+
+app:
+  api-prefix: /api/v1
+  public-base-url: http://localhost:8080
+  storage:
+    mode: local
+    local-storage-root: ./target/test-storage
+  tingwu:
+    mode: sdk
+    region: cn-beijing
+    endpoint: tingwu.cn-beijing.aliyuncs.com
+    access-key-id: ${TINGWU_ACCESS_KEY_ID:}
+    access-key-secret: ${TINGWU_ACCESS_KEY_SECRET:}
+    app-key: ${TINGWU_APP_KEY:NUZKS8AveuPWMwn6}
+    callback-base-url: http://localhost:8080
+  knowledge:
+    search-url:
+    timeout-sec: 5
+  worker:
+    enabled: false
+    poll-interval-sec: 2
+    processing-scan-interval-sec: 2
+    task-timeout-sec: 120
