@@ -82,7 +82,13 @@ class TingwuClient:
             ),
             parameters=self._sdk_models.CreateTaskRequestParameters(
                 meeting_assistance_enabled=True,
+                meeting_assistance=self._sdk_models.CreateTaskRequestParametersMeetingAssistance(
+                    types=["Actions", "KeyInformation"]
+                ),
                 summarization_enabled=True,
+                summarization=self._sdk_models.CreateTaskRequestParametersSummarization(
+                    types=["Paragraph", "Conversational", "QuestionsAnswering"]
+                ),
                 auto_chapters_enabled=True,
                 transcription=self._sdk_models.CreateTaskRequestParametersTranscription(
                     diarization_enabled=True,
