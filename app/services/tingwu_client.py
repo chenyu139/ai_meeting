@@ -1,34 +1,21 @@
 from __future__ import annotations
 
-import time
-import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from app.config import get_settings
 
 
-@dataclass
-class TingwuTask:
-    task_id: str
-    task_status: str
-    meeting_join_url: str
-    started_at: float
-    stopped_at: float | None = None
-
-
 class TingwuClient:
-    _mock_tasks: dict[str, TingwuTask] = {}
-
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.mode = self.settings.tingwu_mode.lower()
+        self.mode = self.settings.tingwu_mode.lower() if self.settings.tingwu_mode else "sdk"
         self._sdk_client = None
         self._sdk_models = None
 
-        if self.mode in {"sdk", "real"}:
-            self._init_sdk_client()
+        if self.mode != "sdk":
+            raise RuntimeError("TINGWU_MODE must be sdk")
+        self._init_sdk_client()
 
     def _init_sdk_client(self) -> None:
         required = [
@@ -58,17 +45,6 @@ class TingwuClient:
         self._sdk_models = tingwu_models
 
     def create_realtime_task(self, task_key: str, title: str, webhook_url: str) -> dict[str, Any]:
-        if self.mode == "mock":
-            task_id = f"mock-{uuid.uuid4()}"
-            join_url = f"wss://mock-tingwu.example.com/ws/{task_id}"
-            self._mock_tasks[task_id] = TingwuTask(
-                task_id=task_id,
-                task_status="INITIATED",
-                meeting_join_url=join_url,
-                started_at=time.time(),
-            )
-            return {"task_id": task_id, "meeting_join_url": join_url}
-
         req = self._sdk_models.CreateTaskRequest(
             app_key=self.settings.tingwu_app_key,
             type="realtime",
@@ -112,14 +88,6 @@ class TingwuClient:
         }
 
     def stop_task(self, task_id: str) -> dict[str, Any]:
-        if self.mode == "mock":
-            task = self._mock_tasks.get(task_id)
-            if not task:
-                return {"ok": False, "error": "task_not_found"}
-            task.task_status = "ONGOING"
-            task.stopped_at = time.time()
-            return {"ok": True}
-
         req = self._sdk_models.CreateTaskRequest(
             app_key=self.settings.tingwu_app_key,
             type="realtime",
@@ -134,52 +102,6 @@ class TingwuClient:
         return {"ok": True, "raw": body}
 
     def get_task_info(self, task_id: str) -> dict[str, Any]:
-        if self.mode == "mock":
-            task = self._mock_tasks.get(task_id)
-            if not task:
-                return {"TaskId": task_id, "TaskStatus": "FAILED", "ErrorMessage": "task_not_found"}
-
-            if task.task_status == "ONGOING" and task.stopped_at and time.time() - task.stopped_at > 2:
-                task.task_status = "COMPLETED"
-
-            payload: dict[str, Any] = {
-                "TaskId": task.task_id,
-                "TaskStatus": task.task_status,
-                "MeetingJoinUrl": task.meeting_join_url,
-            }
-            if task.task_status == "COMPLETED":
-                payload["InlineResult"] = {
-                    "transcript": [
-                        {
-                            "speaker": "说话人1",
-                            "start_ms": 0,
-                            "end_ms": 1200,
-                            "text": "这是一次关于AI听会后端方案的讨论。",
-                        },
-                        {
-                            "speaker": "说话人2",
-                            "start_ms": 1200,
-                            "end_ms": 3200,
-                            "text": "我们决定采用通义听悟直连并在完成态入库。",
-                        },
-                    ],
-                    "summary": {
-                        "overview": "会议明确采用听悟直连、完成态入库与无MQ异步任务表方案。",
-                        "chapters": [
-                            {"title": "架构决策", "start": "00:00", "content": "确认技术路径"}
-                        ],
-                        "decisions": ["前端直连听悟WS", "后端回调+轮询兜底", "不使用RocketMQ"],
-                        "highlights": ["完成态入库"],
-                        "todos": [
-                            {
-                                "text": "完善生产环境TINGWU SDK实现",
-                                "owner": "研发",
-                            }
-                        ],
-                    },
-                }
-            return payload
-
         response = self._sdk_client.get_task_info(task_id)
         body_map = response.body.to_map() if response and response.body else {}
         data = body_map.get("Data", {}) or {}

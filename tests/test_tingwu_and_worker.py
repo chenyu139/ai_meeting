@@ -22,8 +22,8 @@ def _ensure_real_tingwu_env() -> None:
     os.environ.setdefault("TINGWU_APP_KEY", "NUZKS8AveuPWMwn6")
 
     mode = os.getenv("TINGWU_MODE", "").lower()
-    if mode not in {"sdk", "real"}:
-        pytest.skip("Set TINGWU_MODE=sdk (or real) for real-key test")
+    if mode != "sdk":
+        pytest.skip("Set TINGWU_MODE=sdk for real-key test")
 
 
 @pytest.mark.integration

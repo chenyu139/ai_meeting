@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     oss_sts_token: str = Field(default="", alias="OSS_STS_TOKEN")
     oss_public_base_url: str = Field(default="", alias="OSS_PUBLIC_BASE_URL")
 
-    tingwu_mode: str = Field(default="mock", alias="TINGWU_MODE")
+    tingwu_mode: str = Field(default="sdk", alias="TINGWU_MODE")
     tingwu_region: str = Field(default="cn-beijing", alias="TINGWU_REGION")
     tingwu_endpoint: str = Field(default="", alias="TINGWU_ENDPOINT")
     tingwu_access_key_id: str = Field(default="", alias="TINGWU_ACCESS_KEY_ID")
