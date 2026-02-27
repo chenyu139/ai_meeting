@@ -1,37 +1,43 @@
-# AI Meeting Backend
+# AI Meeting Backend (Spring Boot)
 
-Backend service for AI meeting workflow using Alibaba Tingwu realtime tasks.
+AI 听会后端，采用 `Spring Boot + MyBatis-Plus + Redis + PostgreSQL`，对接阿里云通义听悟（前端直连 WS，后端完成态入库）。
 
-## Quick Start
+## 快速启动
 
-1. Create a Python 3.12 virtual environment and install dependencies.
+1. 准备 JDK 17+ 与 Maven 3.9+。
+2. 使用 Spring Boot 标准配置方式：
+   - `src/main/resources/application.yml` 默认配置。
+   - 生产环境建议在 `./config/application-prod.yml` 覆盖，并通过 `--spring.profiles.active=prod` 启动。
+   - 也可用环境变量覆盖（示例：`APP_TINGWU_ACCESS_KEY_ID`、`SPRING_DATASOURCE_URL`）。
+3. 启动服务：
    ```bash
-   python3.12 -m venv .venv312
-   ./.venv312/bin/pip install -r requirements.txt
-   ```
-2. Configure environment variables (copy `.env.example` if needed).
-3. Start API service:
-   ```bash
-   ./.venv312/bin/uvicorn app.main:app --reload
-   ```
-4. Start worker service:
-   ```bash
-   ./.venv312/bin/python scripts/run_worker.py
+   mvn spring-boot:run
    ```
 
-## Architecture docs
+默认端口 `8080`，健康检查：`GET /healthz`。
+Swagger 文档：
+- UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+## Worker 开关
+
+- 仅支持两种状态：
+- 启用：`app.worker.enabled=true`
+- 禁用：`app.worker.enabled=false`
+
+## 文档
 
 - `docs/architecture.md`
 - `docs/api-data-model.md`
 - `docs/testing.md`
 - `docs/deployment.md`
 
-## Real Tingwu integration test
+## 真实听悟集成测试
 
 ```bash
-TINGWU_MODE=sdk \\
-TINGWU_ACCESS_KEY_ID=xxx \\
-TINGWU_ACCESS_KEY_SECRET=xxx \\
-TINGWU_APP_KEY=NUZKS8AveuPWMwn6 \\
-./.venv312/bin/pytest -m integration -q
+APP_TINGWU_MODE=sdk \
+APP_TINGWU_ACCESS_KEY_ID=xxx \
+APP_TINGWU_ACCESS_KEY_SECRET=xxx \
+APP_TINGWU_APP_KEY=NUZKS8AveuPWMwn6 \
+mvn -Dtest=TingwuIntegrationTest test
 ```
