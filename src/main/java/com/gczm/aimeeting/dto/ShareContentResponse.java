@@ -1,0 +1,11 @@
+package com.gczm.aimeeting.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class ShareContentResponse {
+    private MeetingDetailResponse meeting;
+    private MeetingSummaryResponse summary;
+}

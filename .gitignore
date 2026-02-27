@@ -1,14 +1,12 @@
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# Java
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
 
-# Virtual envs
+# Local virtual env/cache
 .venv/
 .venv312/
-venv/
+.pytest_cache/
 
 # Local env/config
 .env

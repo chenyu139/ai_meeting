@@ -1,0 +1,80 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ai-meeting-backend
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  datasource:
+    url: jdbc:h2:file:./ai_meeting;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  data:
+    redis:
+      url: redis://localhost:6379/0
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  sql:
+    init:
+      mode: always
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: assign_uuid
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.gczm.aimeeting.controller
+
+app:
+  api-prefix: /api/v1
+  public-base-url: http://localhost:8080
+
+  storage:
+    mode: local
+    local-storage-root: ./storage
+    oss-endpoint:
+    oss-bucket:
+    oss-access-key-id:
+    oss-access-key-secret:
+    oss-sts-token:
+    oss-public-base-url:
+
+  tingwu:
+    mode: sdk
+    region: cn-beijing
+    endpoint: tingwu.cn-beijing.aliyuncs.com
+    access-key-id:
+    access-key-secret:
+    app-key:
+    webhook-signing-key:
+    callback-base-url: http://localhost:8080
+
+  knowledge:
+    search-url:
+    timeout-sec: 5
+
+  worker:
+    enabled: true
+    poll-interval-sec: 10
+    processing-scan-interval-sec: 30
+    task-timeout-sec: 120
