@@ -15,6 +15,9 @@ AI 听会后端，采用 `Spring Boot + MyBatis-Plus + Redis + PostgreSQL`，对
    ```
 
 默认端口 `8080`，健康检查：`GET /healthz`。
+Swagger 文档：
+- UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
 ## Worker 开关
 

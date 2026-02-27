@@ -34,6 +34,17 @@ management:
       exposure:
         include: health,info
 
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.gczm.aimeeting.controller
+
 app:
   api-prefix: /api/v1
   public-base-url: http://localhost:8080
