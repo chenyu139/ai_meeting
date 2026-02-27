@@ -14,10 +14,10 @@
 - 调度：Spring `@Scheduled`（无 MQ）
 - 监控：ARMS + SLS
 
-## 服务职责
+## 模块职责（单应用内）
 - `meeting-api`：会议创建、状态控制、列表详情、分享、音频上传。
-- `callback-service`：接收听悟回调，推进状态并创建解析任务。
-- `worker-service`：扫描 `parse_job`，拉取听悟结果并解析入库。
+- `callback-handler`：接收听悟回调，推进状态并创建解析任务。
+- `worker-scheduler`：扫描 `parse_job`，拉取听悟结果并解析入库。
 - `knowledge-linker`：调用单接口智库检索并回填。
 
 ## 核心流程
@@ -32,6 +32,11 @@
 
 ## 状态机
 - `RECORDING <-> PAUSED -> PROCESSING -> COMPLETED/FAILED -> DELETED`
+
+## Worker控制
+- 仅支持两种状态：
+- 启用：`app.worker.enabled=true`
+- 禁用：`app.worker.enabled=false`
 
 ## 无MQ异步控制
 - 任务表：`parse_job`

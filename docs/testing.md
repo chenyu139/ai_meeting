@@ -13,10 +13,10 @@
   ```
 - 听悟真实集成：
   ```bash
-  TINGWU_MODE=sdk \
-  TINGWU_ACCESS_KEY_ID=xxx \
-  TINGWU_ACCESS_KEY_SECRET=xxx \
-  TINGWU_APP_KEY=NUZKS8AveuPWMwn6 \
+  APP_TINGWU_MODE=sdk \
+  APP_TINGWU_ACCESS_KEY_ID=xxx \
+  APP_TINGWU_ACCESS_KEY_SECRET=xxx \
+  APP_TINGWU_APP_KEY=NUZKS8AveuPWMwn6 \
   mvn -Dtest=TingwuIntegrationTest test
   ```
 

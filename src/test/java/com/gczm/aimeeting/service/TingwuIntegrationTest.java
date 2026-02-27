@@ -2,7 +2,6 @@ package com.gczm.aimeeting.service;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -22,13 +21,15 @@ class TingwuIntegrationTest {
     @Test
     @Tag("integration")
     void realCreateStopAndQuery() throws InterruptedException {
-        String mode = System.getenv("TINGWU_MODE");
-        String accessKeyId = System.getenv("TINGWU_ACCESS_KEY_ID");
-        String accessKeySecret = System.getenv("TINGWU_ACCESS_KEY_SECRET");
+        String mode = System.getenv("APP_TINGWU_MODE");
+        String accessKeyId = System.getenv("APP_TINGWU_ACCESS_KEY_ID");
+        String accessKeySecret = System.getenv("APP_TINGWU_ACCESS_KEY_SECRET");
+        String appKey = System.getenv("APP_TINGWU_APP_KEY");
 
-        assumeTrue(mode != null && mode.equalsIgnoreCase("sdk"), "Need TINGWU_MODE=sdk");
-        assumeTrue(accessKeyId != null && !accessKeyId.isBlank(), "Need TINGWU_ACCESS_KEY_ID");
-        assumeTrue(accessKeySecret != null && !accessKeySecret.isBlank(), "Need TINGWU_ACCESS_KEY_SECRET");
+        assumeTrue(mode != null && mode.equalsIgnoreCase("sdk"), "Need APP_TINGWU_MODE=sdk");
+        assumeTrue(accessKeyId != null && !accessKeyId.isBlank(), "Need APP_TINGWU_ACCESS_KEY_ID");
+        assumeTrue(accessKeySecret != null && !accessKeySecret.isBlank(), "Need APP_TINGWU_ACCESS_KEY_SECRET");
+        assumeTrue(appKey != null && !appKey.isBlank(), "Need APP_TINGWU_APP_KEY");
 
         Map<String, Object> created = tingwuClient.createRealtimeTask(
                 "it-" + UUID.randomUUID(),

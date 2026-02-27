@@ -5,10 +5,11 @@
 - `staging`
 - `prod`
 
-## 应用拆分（非 K8s）
-- `meeting-api`：对外 API（可关闭 worker）
-- `callback-service`：仅承载 `/callbacks/*`（可与 API 合并）
-- `worker-service`：后台解析（开启 worker 调度）
+## 部署形态（非 K8s）
+- 单一 Spring Boot 应用部署到 SAE。
+- Worker 仅支持开关控制：
+- 启用：`app.worker.enabled=true`
+- 禁用：`app.worker.enabled=false`
 
 ## 发布流程
 1. 云效流水线：编译、测试、打包。
@@ -16,7 +17,9 @@
 3. 回滚：SAE 历史版本回滚。
 
 ## 配置与密钥
-- 全量环境变量注入（见 `.env.example`）。
+- 使用 Spring Boot 标准配置机制：
+- 应用配置文件：`application.yml` / `application-{profile}.yml`
+- 环境变量映射：`APP_*`、`SPRING_*`
 - 听悟 AK/SK、OSS 密钥建议托管到阿里云密钥管理。
 
 ## 监控指标
