@@ -58,7 +58,7 @@ public class IdempotencyService {
         }
 
         IdempotencyRecordEntity record = new IdempotencyRecordEntity();
-        record.setKey(key);
+        record.setIdempotencyKey(key);
         record.setEndpoint(endpoint);
         record.setUserId(userId);
         record.setRequestHash(requestHash);

@@ -174,6 +174,8 @@ public class WorkerService {
             parseJobMapper.updateById(job);
         } catch (Exception ex) {
             retryOrFail(job, ex.getMessage());
+            log.warn("parse job failed: meetingId={}, stage={}, retryCount={}, error={}",
+                    meeting.getId(), job.getStage(), job.getRetryCount(), ex.getMessage(), ex);
             taskEventLogService.log(meeting.getId(), "worker", "parse_job_failed", Map.of(
                     "error", ex.getMessage(),
                     "stage", job.getStage()
