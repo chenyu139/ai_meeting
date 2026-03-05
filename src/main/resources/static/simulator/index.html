@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AI听会全流程模拟器</title>
+  <link rel="icon" href="data:,">
   <style>
     :root {
       --bg: #f5f7fb;
@@ -164,6 +165,7 @@
   <p class="desc">
     目标：单页模拟“创建会议 -> 前端直连听悟WS推流 -> 暂停/继续/结束 -> 轮询与纪要 -> 分享与撤销”全流程。
     推流逻辑参考阿里云听悟官方 JS 示例（StartTranscription/StopTranscription + 100ms发包 + 1024字节分片 + PCM16k）。
+    默认使用“虚拟音源”模式（无麦克风也可跑通），也支持切换为麦克风模式。
   </p>
 
   <div class="grid">
@@ -208,6 +210,19 @@
         <div class="field">
           <label>MeetingJoinUrl（创建后自动填充）</label>
           <input id="joinUrl" placeholder="wss://...">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>推流模式</label>
+          <select id="streamMode">
+            <option value="synthetic">虚拟音源（推荐）</option>
+            <option value="microphone">麦克风</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>虚拟音频频率(Hz)</label>
+          <input id="syntheticFreq" type="number" value="440" min="100" max="2000">
         </div>
       </div>
       <div class="row">

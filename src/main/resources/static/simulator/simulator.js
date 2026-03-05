@@ -17,7 +17,10 @@
     isPaused: false,
     chunkIndex: 0,
     shareToken: "",
-    shareUrl: ""
+    shareUrl: "",
+    syntheticSendTimer: null,
+    syntheticUploadTimer: null,
+    syntheticPhase: 0
   };
 
   const logView = $("logView");
@@ -321,6 +324,57 @@
     }
   }
 
+  function generateSineFloat32(samples, sampleRate, freq, phase) {
+    const out = new Float32Array(samples);
+    const step = (2 * Math.PI * freq) / sampleRate;
+    let p = phase;
+    for (let i = 0; i < samples; i++) {
+      out[i] = Math.sin(p) * 0.4;
+      p += step;
+      if (p > 2 * Math.PI) {
+        p -= 2 * Math.PI;
+      }
+    }
+    return { buffer: out, phase: p };
+  }
+
+  function pcm16ToWavBlob(pcm16, sampleRate) {
+    const channels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * channels * bitsPerSample / 8;
+    const blockAlign = channels * bitsPerSample / 8;
+    const dataSize = pcm16.length * 2;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function writeStr(offset, str) {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeStr(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < pcm16.length; i++) {
+      view.setInt16(offset, pcm16[i], true);
+      offset += 2;
+    }
+    return new Blob([buffer], { type: "audio/wav" });
+  }
+
   function appendTranscriptLine(text) {
     const next = `[${now()}] ${text}\n`;
     transcriptView.textContent = (transcriptView.textContent + next).slice(-30000);
@@ -444,6 +498,38 @@
     state.processorNode.connect(state.audioContext.destination);
   }
 
+  function startSyntheticStreaming() {
+    const freq = Number($("syntheticFreq").value || 440);
+    const sampleRate = 16000;
+    const frameSamples = 1600; // 100ms
+
+    state.syntheticSendTimer = window.setInterval(() => {
+      if (!state.isStreaming || state.isPaused || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      const generated = generateSineFloat32(frameSamples, sampleRate, freq, state.syntheticPhase);
+      state.syntheticPhase = generated.phase;
+      const bytes = floatToPcm16(generated.buffer);
+      sendUint8InChunks(state.ws, bytes, 1024);
+    }, 100);
+
+    state.syntheticUploadTimer = window.setInterval(async () => {
+      if (!state.isStreaming || state.isPaused || !state.meetingId) {
+        return;
+      }
+      try {
+        const generated = generateSineFloat32(sampleRate, sampleRate, freq, state.syntheticPhase);
+        state.syntheticPhase = generated.phase;
+        const bytes = floatToPcm16(generated.buffer);
+        const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
+        const wavBlob = pcm16ToWavBlob(pcm16, sampleRate);
+        await uploadAudioChunk(wavBlob);
+      } catch (err) {
+        log("ERR", "虚拟音源分片上传失败", err.message || String(err));
+      }
+    }, 5000);
+  }
+
   async function startStreaming() {
     ensureMeeting();
     if (state.isStreaming) {
@@ -455,7 +541,12 @@
       throw new Error("MeetingJoinUrl 为空，无法连接听悟WS");
     }
     state.ws = await openWebSocket(state.joinUrl);
-    await initCapture();
+    const mode = $("streamMode").value;
+    if (mode === "microphone") {
+      await initCapture();
+    } else {
+      startSyntheticStreaming();
+    }
 
     state.isStreaming = true;
     state.isPaused = false;
@@ -485,6 +576,14 @@
     if (state.sendTimer) {
       clearInterval(state.sendTimer);
       state.sendTimer = null;
+    }
+    if (state.syntheticSendTimer) {
+      clearInterval(state.syntheticSendTimer);
+      state.syntheticSendTimer = null;
+    }
+    if (state.syntheticUploadTimer) {
+      clearInterval(state.syntheticUploadTimer);
+      state.syntheticUploadTimer = null;
     }
 
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
@@ -528,6 +627,7 @@
       state.stream = null;
     }
     state.pcmQueue = [];
+    state.syntheticPhase = 0;
     setTag("vWsStatus", "DISCONNECTED");
     log("OK", "推流资源已释放");
   }
