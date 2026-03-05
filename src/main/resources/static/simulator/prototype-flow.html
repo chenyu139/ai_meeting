@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI听会原型流程模拟器</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --bg: #eef1f7;
+      --panel: #ffffff;
+      --line: #d8deea;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #1d4ed8;
+      --danger: #dc2626;
+      --warn: #d97706;
+      --ok: #15803d;
+      --badge-rec: #ef4444;
+      --badge-pause: #f59e0b;
+      --badge-proc: #2563eb;
+      --badge-done: #16a34a;
+      --badge-fail: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 10% 10%, #f8fbff 0, #edf2ff 40%, #eef1f7 100%);
+    }
+
+    .layout {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 16px;
+      min-height: 100vh;
+    }
+
+    .phone-shell {
+      background: #111;
+      border-radius: 36px;
+      padding: 10px;
+      box-shadow: 0 18px 40px rgba(16, 24, 40, 0.25);
+      position: sticky;
+      top: 16px;
+      height: calc(100vh - 32px);
+    }
+
+    .phone-screen {
+      background: #f7f8fc;
+      border-radius: 28px;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .nav {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .nav button {
+      border: 0;
+      background: transparent;
+      color: #374151;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .nav button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .view {
+      display: none;
+      flex: 1;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .entry-box {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .entry-title {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .entry-btn {
+      width: 220px;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: 16px;
+      color: #fff;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
+      cursor: pointer;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f7f8fc;
+      padding-bottom: 8px;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #374151;
+      background: #e5e7eb;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: #fff;
+      background: #1f2937;
+    }
+
+    .meeting-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .meeting-title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .meeting-meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 11px;
+      border-radius: 999px;
+      color: #fff;
+      padding: 2px 8px;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+
+    .status-RECORDING { background: var(--badge-rec); }
+    .status-PAUSED { background: var(--badge-pause); }
+    .status-PROCESSING { background: var(--badge-proc); }
+    .status-COMPLETED { background: var(--badge-done); }
+    .status-FAILED { background: var(--badge-fail); }
+    .status-DELETED { background: #6b7280; }
+
+    .fab {
+      position: sticky;
+      bottom: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-top: 6px;
+    }
+
+    .fab button {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: 0;
+      cursor: pointer;
+      font-size: 28px;
+      color: #fff;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
+    }
+
+    .fab-label {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .record-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .record-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .transcript-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      min-height: 330px;
+      max-height: calc(100vh - 360px);
+      overflow: auto;
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .timer-line {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #374151;
+      text-align: center;
+    }
+
+    .record-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+      position: sticky;
+      bottom: 0;
+      background: #f7f8fc;
+      padding: 8px 0 4px;
+    }
+
+    .record-actions button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .btn-end { background: var(--danger); }
+    .btn-pause { background: #111827; }
+    .btn-resume { background: var(--ok); }
+
+    .summary-head {
+      margin-bottom: 8px;
+    }
+
+    .summary-title {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .summary-meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .summary-tools {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      position: sticky;
+      top: 0;
+      background: #f7f8fc;
+      padding-bottom: 8px;
+      z-index: 2;
+    }
+
+    .summary-tools button,
+    .small-btn {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #1f2937;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .section-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      overflow: auto;
+    }
+
+    .section-tab {
+      border: 0;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      white-space: nowrap;
+      color: #374151;
+      background: #e5e7eb;
+      cursor: pointer;
+    }
+
+    .section-tab.active {
+      color: #fff;
+      background: #1d4ed8;
+    }
+
+    .summary-content {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      min-height: 420px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .summary-content ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .summary-content li {
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .edit-panel {
+      margin-top: 10px;
+      border: 1px dashed #9fb2de;
+      background: #f8fbff;
+      border-radius: 12px;
+      padding: 10px;
+      display: none;
+      gap: 8px;
+      flex-direction: column;
+    }
+
+    .edit-panel.active {
+      display: flex;
+    }
+
+    .edit-panel textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+      min-height: 70px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      z-index: 20;
+    }
+
+    .overlay.active {
+      display: block;
+    }
+
+    .drawer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 86%;
+      height: 100%;
+      background: #fff;
+      border-left: 1px solid var(--line);
+      box-shadow: -8px 0 24px rgba(15, 23, 42, 0.18);
+      transform: translateX(100%);
+      transition: transform .2s ease;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drawer.active {
+      transform: translateX(0);
+    }
+
+    .drawer-head {
+      height: 48px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-weight: 600;
+    }
+
+    .drawer-content {
+      padding: 10px;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .knowledge-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+
+    .knowledge-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .knowledge-desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .knowledge-link {
+      font-size: 12px;
+      color: #1d4ed8;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #fff;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.14);
+      transform: translateY(100%);
+      transition: transform .2s ease;
+      z-index: 35;
+      padding: 12px;
+      max-height: 82%;
+      overflow: auto;
+    }
+
+    .sheet.active {
+      transform: translateY(0);
+    }
+
+    .sheet-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .sheet-row:last-child { margin-bottom: 0; }
+
+    .sheet-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .sheet-field input,
+    .sheet-field select,
+    .sheet-field textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .sheet-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .sheet-actions button {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px;
+      color: #fff;
+      background: #1d4ed8;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .sheet-actions .alt { background: #4b5563; }
+    .sheet-actions .danger { background: var(--danger); }
+
+    .audio-player {
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .debug {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .actions button {
+      border: 0;
+      border-radius: 8px;
+      background: #1d4ed8;
+      color: #fff;
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .actions .secondary { background: #4b5563; }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+
+    .kv .k { color: var(--muted); }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+    }
+
+    .log {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.45;
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 18px 0;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .phone-shell {
+        position: relative;
+        height: 760px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <section class="phone-shell">
+    <div class="phone-screen">
+      <div class="nav">
+        <button id="btnNavBack">‹</button>
+        <div id="navTitle">AI听会</div>
+        <button id="btnNavRefresh">⟳</button>
+      </div>
+
+      <section id="view-entry" class="view active">
+        <div class="entry-box">
+          <div class="entry-title">AI听会</div>
+          <button id="btnEnter" class="entry-btn">进入听会</button>
+          <div class="hint">按原型流程模拟：入口 → 列表 → 录音 → 纪要 → 分享</div>
+        </div>
+      </section>
+
+      <section id="view-list" class="view">
+        <div class="tabs" id="listTabs">
+          <button class="tab active" data-tab="all">全部</button>
+          <button class="tab" data-tab="mine">我创建的</button>
+          <button class="tab" data-tab="shared">分享给我的</button>
+        </div>
+        <div id="meetingList"></div>
+        <div class="fab">
+          <div>
+            <button id="btnStartMeeting" title="开始录音">🎤</button>
+            <div class="fab-label">开始录音</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-record" class="view">
+        <div class="record-title" id="recordTitle">新录音</div>
+        <div class="record-sub" id="recordSub">-</div>
+        <div class="transcript-box" id="recordTranscript"></div>
+        <div class="timer-line" id="recordTimer">00:00（录音加密保护中）</div>
+        <div class="record-actions">
+          <button id="btnRecordFinish" class="btn-end">结束</button>
+          <button id="btnRecordPauseResume" class="btn-pause">暂停</button>
+        </div>
+      </section>
+
+      <section id="view-summary" class="view">
+        <div class="summary-head">
+          <div class="summary-title" id="summaryTitle">会议纪要</div>
+          <div class="summary-meta">
+            <span id="summaryMeta">-</span>
+            <span id="summaryStatus" class="status-badge status-PROCESSING">PROCESSING</span>
+          </div>
+        </div>
+
+        <div class="summary-tools">
+          <button id="btnSummaryRefresh">刷新</button>
+          <button id="btnSummaryPlayback">听录音</button>
+          <button id="btnSummaryEdit">在线编辑</button>
+          <button id="btnSummaryKnowledge">智库关联</button>
+          <button id="btnSummaryShare">分享</button>
+        </div>
+
+        <div class="section-tabs" id="summaryTabs">
+          <button class="section-tab active" data-section="overview">图文总结</button>
+          <button class="section-tab" data-section="chapters">智能章节</button>
+          <button class="section-tab" data-section="decisions">关键决策</button>
+          <button class="section-tab" data-section="highlights">金句时刻</button>
+          <button class="section-tab" data-section="todos">待办事项</button>
+        </div>
+
+        <div class="summary-content" id="summaryContent"></div>
+
+        <div id="editPanel" class="edit-panel">
+          <textarea id="editOverview" placeholder="overview"></textarea>
+          <textarea id="editChapters" placeholder="chapters JSON"></textarea>
+          <textarea id="editDecisions" placeholder="decisions JSON"></textarea>
+          <textarea id="editHighlights" placeholder="highlights JSON"></textarea>
+          <textarea id="editTodos" placeholder="todos JSON"></textarea>
+          <div class="actions">
+            <button id="btnEditSave">保存编辑</button>
+            <button id="btnEditCancel" class="secondary">取消</button>
+          </div>
+        </div>
+
+        <audio id="audioPlayer" class="audio-player" controls></audio>
+      </section>
+
+      <div id="overlay" class="overlay"></div>
+
+      <aside id="knowledgeDrawer" class="drawer">
+        <div class="drawer-head">
+          <span>智库关联</span>
+          <button id="btnCloseKnowledge">✕</button>
+        </div>
+        <div class="drawer-content" id="knowledgeList"></div>
+      </aside>
+
+      <section id="shareSheet" class="sheet">
+        <div class="sheet-row">
+          <div class="sheet-field">
+            <label>链接有效期</label>
+            <select id="shareExpire">
+              <option value="7">7天</option>
+              <option value="30">30天</option>
+              <option value="0">永久</option>
+            </select>
+          </div>
+          <div class="sheet-field">
+            <label>链接密码（可空）</label>
+            <input id="sharePasscode" placeholder="不填写代表不设密码" maxlength="8" value="1234">
+          </div>
+        </div>
+        <div class="sheet-row">
+          <div class="sheet-field">
+            <label>Share Token</label>
+            <input id="shareToken" readonly>
+          </div>
+        </div>
+        <div class="sheet-row">
+          <div class="sheet-field">
+            <label>Share URL</label>
+            <textarea id="shareUrl" rows="2" readonly></textarea>
+          </div>
+        </div>
+        <div class="sheet-actions">
+          <button id="btnShareCreate">创建分享</button>
+          <button id="btnShareCopy" class="alt">复制链接</button>
+          <button id="btnShareVerify" class="alt">校验密码</button>
+          <button id="btnShareGet" class="alt">获取内容</button>
+          <button id="btnShareRevoke" class="danger">撤销分享</button>
+          <button id="btnShareClose" class="alt">关闭</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <aside class="debug">
+    <section class="panel">
+      <h3>环境与录音配置</h3>
+      <div class="grid2">
+        <div class="field">
+          <label>API Base URL</label>
+          <input id="cfgBaseUrl" value="http://127.0.0.1:8080">
+        </div>
+        <div class="field">
+          <label>API Prefix</label>
+          <input id="cfgApiPrefix" value="/api/v1">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>X-User-Id</label>
+          <input id="cfgUserId" value="web_user_001">
+        </div>
+        <div class="field">
+          <label>会议标题模板</label>
+          <input id="cfgTitlePrefix" value="原型流程模拟会议">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>推流模式</label>
+          <select id="cfgStreamMode">
+            <option value="synthetic">虚拟音源（推荐）</option>
+            <option value="microphone">麦克风</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>虚拟频率(Hz)</label>
+          <input id="cfgSyntheticFreq" type="number" min="100" max="2000" value="440">
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btnHealth">健康检查</button>
+        <button id="btnReloadList" class="secondary">刷新列表</button>
+        <button id="btnRunWorker" class="secondary">触发Worker</button>
+      </div>
+      <div class="kv">
+        <div class="k">meeting_id</div><div id="kvMeetingId" class="mono">-</div>
+        <div class="k">task_id</div><div id="kvTaskId" class="mono">-</div>
+        <div class="k">meeting_status</div><div id="kvMeetingStatus">-</div>
+        <div class="k">ws_status</div><div id="kvWsStatus">DISCONNECTED</div>
+        <div class="k">stream_status</div><div id="kvStreamStatus">IDLE</div>
+        <div class="k">chunk_count</div><div id="kvChunkCount">0</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>调试日志</h3>
+      <pre id="logView" class="log"></pre>
+    </section>
+  </aside>
+</div>
+
+<script src="./prototype-flow.js"></script>
+</body>
+</html>

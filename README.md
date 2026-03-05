@@ -19,6 +19,7 @@ Swagger 文档：
 - UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - Web全流程模拟页：`http://localhost:8080/simulator/index.html`
+- Web原型流程模拟页：`http://localhost:8080/simulator/prototype-flow.html`
 
 ## 版本基线
 
