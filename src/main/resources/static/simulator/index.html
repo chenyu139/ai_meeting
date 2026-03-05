@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI听会全流程模拟器</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #d7dceb;
+      --text: #1a2340;
+      --muted: #5b6788;
+      --primary: #1257ff;
+      --ok: #17803d;
+      --warn: #b26d00;
+      --err: #c0342b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .title {
+      margin: 0 0 14px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .desc {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 72px;
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    @media (max-width: 1100px) {
+      .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-12 {
+        grid-column: span 12;
+      }
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 160px;
+      flex: 1;
+    }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+    }
+    textarea { min-height: 84px; resize: vertical; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #fff;
+      background: var(--primary);
+    }
+    button.secondary {
+      background: #647095;
+    }
+    button.warn {
+      background: var(--warn);
+    }
+    button.danger {
+      background: var(--err);
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .58;
+    }
+    .kv {
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      gap: 6px 8px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+    .kv .k { color: var(--muted); }
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      background: #e9eeff;
+      color: #193386;
+      font-weight: 600;
+    }
+    .ok { color: var(--ok); }
+    .warn-text { color: var(--warn); }
+    .err { color: var(--err); }
+    pre {
+      margin: 0;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #f9fbff;
+      padding: 10px;
+      line-height: 1.4;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 240px;
+      overflow: auto;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="title">AI听会全流程模拟器（Web）</h1>
+  <p class="desc">
+    目标：单页模拟“创建会议 -> 前端直连听悟WS推流 -> 暂停/继续/结束 -> 轮询与纪要 -> 分享与撤销”全流程。
+    推流逻辑参考阿里云听悟官方 JS 示例（StartTranscription/StopTranscription + 100ms发包 + 1024字节分片 + PCM16k）。
+  </p>
+
+  <div class="grid">
+    <section class="card span-4">
+      <h3>环境配置</h3>
+      <div class="row">
+        <div class="field">
+          <label>API Base URL</label>
+          <input id="baseUrl" value="">
+        </div>
+        <div class="field">
+          <label>API Prefix</label>
+          <input id="apiPrefix" value="/api/v1">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>X-User-Id</label>
+          <input id="userId" value="web_user_001">
+        </div>
+        <div class="field">
+          <label>会议标题</label>
+          <input id="meetingTitle" value="Web端AI听会模拟会议">
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnHealth">健康检查</button>
+        <button id="btnCreate">创建会议</button>
+        <button id="btnListMine" class="secondary">我的会议</button>
+        <button id="btnDetail" class="secondary">会议详情</button>
+      </div>
+      <div class="kv">
+        <div class="k">meeting_id</div><div id="vMeetingId" class="mono">-</div>
+        <div class="k">task_id</div><div id="vTaskId" class="mono">-</div>
+        <div class="k">状态</div><div id="vMeetingStatus"><span class="tag">INIT</span></div>
+      </div>
+    </section>
+
+    <section class="card span-8">
+      <h3>听悟WS推流（前端直连）</h3>
+      <div class="row">
+        <div class="field">
+          <label>MeetingJoinUrl（创建后自动填充）</label>
+          <input id="joinUrl" placeholder="wss://...">
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnStartStream">开始推流</button>
+        <button id="btnPause" class="warn">暂停会议</button>
+        <button id="btnResume" class="secondary">继续会议</button>
+        <button id="btnStopStream" class="secondary">停止推流(仅前端)</button>
+        <button id="btnFinish" class="danger">结束会议</button>
+      </div>
+      <div class="kv">
+        <div class="k">WS状态</div><div id="vWsStatus"><span class="tag">DISCONNECTED</span></div>
+        <div class="k">推流状态</div><div id="vStreamStatus"><span class="tag">IDLE</span></div>
+        <div class="k">上传音频分片</div><div id="vChunkStat">0</div>
+      </div>
+      <pre id="transcriptView"></pre>
+    </section>
+
+    <section class="card span-6">
+      <h3>处理与纪要</h3>
+      <div class="row">
+        <button id="btnPoll">触发Worker轮询</button>
+        <button id="btnLive" class="secondary">查询任务实时状态</button>
+        <button id="btnSummary" class="secondary">查询纪要</button>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>overview 编辑</label>
+          <textarea id="overviewInput" placeholder="纪要概览..."></textarea>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>chapters JSON</label>
+          <textarea id="chaptersInput">[]</textarea>
+        </div>
+        <div class="field">
+          <label>decisions JSON</label>
+          <textarea id="decisionsInput">[]</textarea>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>highlights JSON</label>
+          <textarea id="highlightsInput">[]</textarea>
+        </div>
+        <div class="field">
+          <label>todos JSON</label>
+          <textarea id="todosInput">[]</textarea>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnPatchSummary">保存纪要编辑</button>
+        <button id="btnPlayback" class="secondary">获取回放地址</button>
+      </div>
+      <pre id="summaryView"></pre>
+    </section>
+
+    <section class="card span-6">
+      <h3>分享链路</h3>
+      <div class="row">
+        <div class="field">
+          <label>有效天数</label>
+          <input id="shareExpireDays" value="7" type="number" min="0" max="3650">
+        </div>
+        <div class="field">
+          <label>提取码(4~8位，可空)</label>
+          <input id="sharePasscode" value="1234" maxlength="8">
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnCreateShare">创建分享</button>
+        <button id="btnVerifyShare" class="secondary">校验提取码</button>
+        <button id="btnGetShare" class="secondary">获取分享内容</button>
+        <button id="btnRevokeShare" class="danger">撤销分享</button>
+      </div>
+      <div class="kv">
+        <div class="k">share token</div><div id="vShareToken" class="mono">-</div>
+        <div class="k">share url</div><div id="vShareUrl" class="mono">-</div>
+      </div>
+      <pre id="shareView"></pre>
+    </section>
+
+    <section class="card span-12">
+      <h3>统一日志</h3>
+      <pre id="logView"></pre>
+    </section>
+  </div>
+</div>
+<script src="./simulator.js"></script>
+</body>
+</html>
