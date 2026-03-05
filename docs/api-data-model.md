@@ -19,7 +19,7 @@
 - `GET /api/v1/share/{token}/content` 获取分享内容
 - `POST /api/v1/share/{token}/revoke` 失效分享
 - `POST /api/v1/callbacks/tingwu` 听悟回调
-- `POST /api/v1/callbacks/poll/process` 手动触发 worker
+- `POST /api/v1/admin/worker/run-once` 手动触发 worker
 - `POST /api/v1/admin/meetings/{id}/parse-jobs/reset` 人工补偿
 
 ## 数据表

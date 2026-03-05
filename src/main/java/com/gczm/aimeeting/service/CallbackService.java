@@ -11,7 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -61,10 +60,5 @@ public class CallbackService {
         }
 
         return true;
-    }
-
-    public Map<String, Object> triggerWorkerScan() {
-        workerService.runOnce();
-        return Map.of("ok", true, "timestamp", LocalDateTime.now().toString());
     }
 }

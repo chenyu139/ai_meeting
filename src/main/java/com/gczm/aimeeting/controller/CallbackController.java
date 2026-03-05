@@ -19,9 +19,4 @@ public class CallbackController {
         callbackService.handleTingwuCallback(payload);
         return new CallbackAckResponse(true);
     }
-
-    @PostMapping("/poll/process")
-    public Map<String, Object> triggerWorkerScan() {
-        return callbackService.triggerWorkerScan();
-    }
 }

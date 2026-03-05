@@ -184,7 +184,7 @@
   }
 
   async function pollWorker() {
-    await request("POST", "/callbacks/poll/process", { body: {} });
+    await request("POST", "/admin/worker/run-once", { body: {} });
     const detail = await getMeetingDetail();
     if (detail.status) {
       setTag("vMeetingStatus", detail.status);
@@ -530,6 +530,22 @@
     }, 5000);
   }
 
+  function startMicrophonePcmPusher() {
+    state.sendTimer = window.setInterval(() => {
+      if (!state.isStreaming || state.isPaused || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      if (!state.audioContext || state.pcmQueue.length === 0) {
+        return;
+      }
+      const merged = mergeFloat32(state.pcmQueue);
+      state.pcmQueue = [];
+      const pcm16k = downsampleTo16k(merged, state.audioContext.sampleRate);
+      const bytes = floatToPcm16(pcm16k);
+      sendUint8InChunks(state.ws, bytes, 1024);
+    }, 100);
+  }
+
   async function startStreaming() {
     ensureMeeting();
     if (state.isStreaming) {
@@ -544,6 +560,7 @@
     const mode = $("streamMode").value;
     if (mode === "microphone") {
       await initCapture();
+      startMicrophonePcmPusher();
     } else {
       startSyntheticStreaming();
     }
@@ -551,20 +568,6 @@
     state.isStreaming = true;
     state.isPaused = false;
     setTag("vStreamStatus", "STREAMING");
-
-    state.sendTimer = window.setInterval(() => {
-      if (!state.isStreaming || state.isPaused || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
-        return;
-      }
-      if (state.pcmQueue.length === 0) {
-        return;
-      }
-      const merged = mergeFloat32(state.pcmQueue);
-      state.pcmQueue = [];
-      const pcm16k = downsampleTo16k(merged, state.audioContext.sampleRate);
-      const bytes = floatToPcm16(pcm16k);
-      sendUint8InChunks(state.ws, bytes, 1024);
-    }, 100);
     log("OK", "推流已启动");
   }
 

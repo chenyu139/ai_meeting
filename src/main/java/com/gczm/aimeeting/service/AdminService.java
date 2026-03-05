@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -23,6 +24,7 @@ public class AdminService {
 
     private final MeetingMapper meetingMapper;
     private final ParseJobMapper parseJobMapper;
+    private final WorkerService workerService;
 
     @Transactional
     public ParseJobResponse resetParseJob(String meetingId, String stage, String userId) {
@@ -62,5 +64,10 @@ public class AdminService {
                 .status(ParseJobStatus.valueOf(job.getStatus()))
                 .retryCount(job.getRetryCount())
                 .build();
+    }
+
+    public Map<String, Object> triggerWorkerRunOnce() {
+        workerService.runOnce();
+        return Map.of("ok", true, "timestamp", LocalDateTime.now().toString());
     }
 }
