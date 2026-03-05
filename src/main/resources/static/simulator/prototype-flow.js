@@ -473,24 +473,24 @@
       return lines;
     }
 
-    const t1 = pick(msg, "payload")?.output?.sentence?.text;
-    if (typeof t1 === "string" && t1.trim()) {
-      lines.push(t1.trim());
+    const payload = pick(msg, "payload") || {};
+    const candidates = [
+      payload.result,
+      payload?.stash_result?.text,
+      payload?.output?.sentence?.text,
+      payload?.output?.text,
+      payload?.result?.text
+    ];
+
+    for (const text of candidates) {
+      if (typeof text === "string" && text.trim()) {
+        lines.push(text.trim());
+      }
     }
 
-    const t2 = pick(msg, "payload")?.output?.text;
-    if (typeof t2 === "string" && t2.trim()) {
-      lines.push(t2.trim());
-    }
-
-    const t3 = pick(msg, "payload")?.result?.text;
-    if (typeof t3 === "string" && t3.trim()) {
-      lines.push(t3.trim());
-    }
-
-    const sentences = pick(msg, "payload")?.output?.sentences;
-    if (Array.isArray(sentences)) {
-      for (const sentence of sentences) {
+    const outputSentences = payload?.output?.sentences;
+    if (Array.isArray(outputSentences)) {
+      for (const sentence of outputSentences) {
         if (sentence && typeof sentence.text === "string" && sentence.text.trim()) {
           lines.push(sentence.text.trim());
         }
@@ -514,16 +514,12 @@
       ws.onopen = () => {
         const cmd = {
           header: {
-            action: "StartTranscription",
-            message_id: randomMessageId(),
-            task_id: state.taskId || undefined,
-            streaming: "duplex"
+            name: "StartTranscription",
+            namespace: "SpeechTranscriber"
           },
           payload: {
             format: "pcm",
-            sample_rate: 16000,
-            sample_bits: 16,
-            channels: 1
+            sample_rate: 16000
           }
         };
         ws.send(JSON.stringify(cmd));
@@ -711,6 +707,13 @@
     state.mediaRecorder.start(5000);
 
     state.audioContext = new AudioContext();
+    if (state.audioContext.state === "suspended") {
+      await state.audioContext.resume();
+    }
+    log("AUDIO", "麦克风音频上下文就绪", {
+      state: state.audioContext.state,
+      sample_rate: state.audioContext.sampleRate
+    });
     state.sourceNode = state.audioContext.createMediaStreamSource(state.stream);
     state.processorNode = state.audioContext.createScriptProcessor(4096, 1, 1);
 
@@ -874,10 +877,10 @@
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
       const cmd = {
         header: {
-          action: "StopTranscription",
-          message_id: randomMessageId(),
-          task_id: state.taskId || undefined
-        }
+          name: "StopTranscription",
+          namespace: "SpeechTranscriber"
+        },
+        payload: {}
       };
       state.ws.send(JSON.stringify(cmd));
       log("WS", "已发送 StopTranscription", cmd);

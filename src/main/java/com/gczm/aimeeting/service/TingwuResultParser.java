@@ -68,11 +68,18 @@ public class TingwuResultParser {
             return List.of();
         }
 
+        if (payload instanceof Map<?, ?> rootMap) {
+            Object transcription = rootMap.get("Transcription");
+            if (transcription != null) {
+                payload = transcription;
+            }
+        }
+
         List<?> source = null;
         if (payload instanceof List<?> list) {
             source = list;
         } else if (payload instanceof Map<?, ?> map) {
-            for (String key : List.of("segments", "sentences", "SentenceList", "data")) {
+            for (String key : List.of("segments", "sentences", "SentenceList", "data", "Sentences", "Paragraphs", "paragraphs")) {
                 Object value = map.get(key);
                 if (value instanceof List<?> list) {
                     source = list;
@@ -92,16 +99,28 @@ public class TingwuResultParser {
                 continue;
             }
 
-            String text = firstString(map, List.of("text", "Text", "content"));
+            String text = firstString(map, List.of("text", "Text", "content", "ParagraphText", "SentenceText"));
+            if (text == null || text.isBlank()) {
+                text = wordsToText(map.get("Words"));
+            }
             if (text == null || text.isBlank()) {
                 continue;
             }
 
+            Integer startMs = firstInteger(map, List.of("start_ms", "StartTime", "begin_time", "start", "Start", "BeginTime"));
+            Integer endMs = firstInteger(map, List.of("end_ms", "EndTime", "end_time", "end", "End"));
+            if (startMs == null) {
+                startMs = wordsStart(map.get("Words"));
+            }
+            if (endMs == null) {
+                endMs = wordsEnd(map.get("Words"));
+            }
+
             Map<String, Object> seg = new LinkedHashMap<>();
             seg.put("segment_order", idx);
-            seg.put("speaker", firstString(map, List.of("speaker", "Speaker")));
-            seg.put("start_ms", firstInteger(map, List.of("start_ms", "StartTime", "begin_time")));
-            seg.put("end_ms", firstInteger(map, List.of("end_ms", "EndTime", "end_time")));
+            seg.put("speaker", firstString(map, List.of("speaker", "Speaker", "SpeakerId", "SpeakerName")));
+            seg.put("start_ms", startMs);
+            seg.put("end_ms", endMs);
             seg.put("confidence", firstInteger(map, List.of("confidence", "Confidence")));
             seg.put("text", text);
             normalized.add(seg);
@@ -122,12 +141,41 @@ public class TingwuResultParser {
             return defaults;
         }
 
+        if (payload instanceof Map<?, ?> root) {
+            Object summarization = root.get("Summarization");
+            if (summarization != null) {
+                payload = summarization;
+            }
+        }
+
         if (payload instanceof Map<?, ?> map) {
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("overview", firstString(map, List.of("overview", "Overview", "summary"), ""));
-            out.put("chapters", firstList(map, List.of("chapters", "Chapters")));
-            out.put("decisions", firstList(map, List.of("decisions", "Decisions")));
-            out.put("highlights", firstList(map, List.of("highlights", "Highlights")));
+            String overview = firstString(map, List.of("overview", "Overview", "summary", "ParagraphSummary", "paragraphSummary"), "");
+            out.put("overview", overview);
+
+            List<?> chapters = firstList(map, List.of("chapters", "Chapters", "AutoChapters", "autoChapters"));
+            if (chapters.isEmpty()) {
+                String paragraphTitle = firstString(map, List.of("ParagraphTitle", "paragraphTitle"));
+                if (paragraphTitle != null && !paragraphTitle.isBlank()) {
+                    chapters = List.of(Map.of("title", paragraphTitle));
+                }
+            }
+            out.put("chapters", chapters);
+
+            List<?> decisions = firstList(map, List.of("decisions", "Decisions"));
+            List<?> qaList = firstList(map, List.of("QuestionsAnsweringSummary", "questionsAnsweringSummary"));
+            if (decisions.isEmpty() && !qaList.isEmpty()) {
+                decisions = qaList;
+            }
+            out.put("decisions", decisions);
+
+            List<?> highlights = firstList(map, List.of("highlights", "Highlights"));
+            List<?> conversational = firstList(map, List.of("ConversationalSummary", "conversationalSummary"));
+            if (highlights.isEmpty() && !conversational.isEmpty()) {
+                highlights = conversational;
+            }
+            out.put("highlights", highlights);
+
             out.put("todos", firstList(map, List.of("todos", "Todos")));
             return out;
         }
@@ -198,5 +246,47 @@ public class TingwuResultParser {
             }
         }
         return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String wordsToText(Object wordsObject) {
+        if (!(wordsObject instanceof List<?> words)) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Object w : words) {
+            if (w instanceof Map<?, ?> wordMap) {
+                Object text = wordMap.get("Text");
+                if (text == null) {
+                    text = wordMap.get("text");
+                }
+                if (text instanceof String s && !s.isBlank()) {
+                    sb.append(s);
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    private Integer wordsStart(Object wordsObject) {
+        if (!(wordsObject instanceof List<?> words) || words.isEmpty()) {
+            return null;
+        }
+        Object first = words.get(0);
+        if (!(first instanceof Map<?, ?> firstWord)) {
+            return null;
+        }
+        return firstInteger(firstWord, List.of("Start", "start", "BeginTime"));
+    }
+
+    private Integer wordsEnd(Object wordsObject) {
+        if (!(wordsObject instanceof List<?> words) || words.isEmpty()) {
+            return null;
+        }
+        Object last = words.get(words.size() - 1);
+        if (!(last instanceof Map<?, ?> lastWord)) {
+            return null;
+        }
+        return firstInteger(lastWord, List.of("End", "end", "EndTime"));
     }
 }

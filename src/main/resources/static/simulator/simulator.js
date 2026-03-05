@@ -386,16 +386,22 @@
     if (!msg || typeof msg !== "object") {
       return out;
     }
-    const sentenceText =
-      msg.payload?.output?.sentence?.text ||
-      msg.payload?.output?.text ||
-      msg.payload?.result?.text ||
-      msg.payload?.text;
-    if (typeof sentenceText === "string" && sentenceText.trim()) {
-      out.push(sentenceText.trim());
+    const payload = msg.payload || {};
+    const candidates = [
+      payload.result,
+      payload?.stash_result?.text,
+      payload?.output?.sentence?.text,
+      payload?.output?.text,
+      payload?.result?.text,
+      payload.text
+    ];
+    for (const text of candidates) {
+      if (typeof text === "string" && text.trim()) {
+        out.push(text.trim());
+      }
     }
-    if (Array.isArray(msg.payload?.output?.sentences)) {
-      for (const s of msg.payload.output.sentences) {
+    if (Array.isArray(payload?.output?.sentences)) {
+      for (const s of payload.output.sentences) {
         if (s && typeof s.text === "string" && s.text.trim()) {
           out.push(s.text.trim());
         }
@@ -412,16 +418,12 @@
       ws.onopen = () => {
         const cmd = {
           header: {
-            action: "StartTranscription",
-            message_id: randomEventId(),
-            task_id: state.taskId || undefined,
-            streaming: "duplex"
+            name: "StartTranscription",
+            namespace: "SpeechTranscriber"
           },
           payload: {
             format: "pcm",
-            sample_rate: 16000,
-            sample_bits: 16,
-            channels: 1
+            sample_rate: 16000
           }
         };
         ws.send(JSON.stringify(cmd));
@@ -485,6 +487,13 @@
     state.mediaRecorder.start(5000);
 
     state.audioContext = new AudioContext();
+    if (state.audioContext.state === "suspended") {
+      await state.audioContext.resume();
+    }
+    log("AUDIO", "麦克风音频上下文就绪", {
+      state: state.audioContext.state,
+      sample_rate: state.audioContext.sampleRate
+    });
     state.sourceNode = state.audioContext.createMediaStreamSource(state.stream);
     state.processorNode = state.audioContext.createScriptProcessor(4096, 1, 1);
     state.processorNode.onaudioprocess = (e) => {
@@ -592,10 +601,10 @@
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
       const cmd = {
         header: {
-          action: "StopTranscription",
-          message_id: randomEventId(),
-          task_id: state.taskId || undefined
-        }
+          name: "StopTranscription",
+          namespace: "SpeechTranscriber"
+        },
+        payload: {}
       };
       state.ws.send(JSON.stringify(cmd));
       log("WS", "已发送 StopTranscription", cmd);
