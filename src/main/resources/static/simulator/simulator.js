@@ -375,8 +375,33 @@
     return new Blob([buffer], { type: "audio/wav" });
   }
 
-  function appendTranscriptLine(text) {
-    const next = `[${now()}] ${text}\n`;
+  function formatSpeakerLabel(speakerId) {
+    if (speakerId === null || speakerId === undefined) {
+      return "";
+    }
+    const raw = String(speakerId).trim();
+    if (!raw) {
+      return "";
+    }
+    const pureNum = raw.match(/^\d+$/);
+    if (pureNum) {
+      return `说话人${pureNum[0]}`;
+    }
+    const speakerNum = raw.match(/^speaker[_-]?(\d+)$/i);
+    if (speakerNum) {
+      return `说话人${speakerNum[1]}`;
+    }
+    return raw;
+  }
+
+  function appendTranscriptLine(entry) {
+    const text = typeof entry === "string" ? entry : (entry?.text || "");
+    if (!text.trim()) {
+      return;
+    }
+    const speaker = typeof entry === "string" ? "" : formatSpeakerLabel(entry?.speakerId);
+    const speakerPrefix = speaker ? `[${speaker}] ` : "";
+    const next = `[${now()}] ${speakerPrefix}${text}\n`;
     transcriptView.textContent = (transcriptView.textContent + next).slice(-30000);
     transcriptView.scrollTop = transcriptView.scrollHeight;
   }
@@ -387,23 +412,56 @@
       return out;
     }
     const payload = msg.payload || {};
+    const seen = new Set();
+    const speakerKeys = ["speaker_id", "speakerId", "SpeakerId", "speaker", "Speaker", "speaker_name", "SpeakerName"];
+    const readSpeaker = (obj) => {
+      if (!obj || typeof obj !== "object") {
+        return null;
+      }
+      for (const key of speakerKeys) {
+        const value = obj[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return String(value).trim();
+        }
+      }
+      return null;
+    };
+    const defaultSpeaker = readSpeaker(payload) || readSpeaker(msg);
+    const addLine = (text, speakerId) => {
+      if (typeof text !== "string" || !text.trim()) {
+        return;
+      }
+      const normalizedText = text.trim();
+      const normalizedSpeaker = (speakerId || defaultSpeaker || "").trim();
+      const key = `${normalizedSpeaker}::${normalizedText}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      out.push({
+        text: normalizedText,
+        speakerId: normalizedSpeaker || null
+      });
+    };
     const candidates = [
       payload.result,
       payload?.stash_result?.text,
-      payload?.output?.sentence?.text,
       payload?.output?.text,
       payload?.result?.text,
       payload.text
     ];
     for (const text of candidates) {
-      if (typeof text === "string" && text.trim()) {
-        out.push(text.trim());
+      addLine(text, null);
+    }
+    for (const sentence of [payload?.output?.sentence, payload?.sentence, payload?.result]) {
+      if (sentence && typeof sentence === "object") {
+        addLine(sentence.text || sentence.Text, readSpeaker(sentence));
       }
     }
     if (Array.isArray(payload?.output?.sentences)) {
       for (const s of payload.output.sentences) {
-        if (s && typeof s.text === "string" && s.text.trim()) {
-          out.push(s.text.trim());
+        if (s && typeof s === "object") {
+          addLine(s.text || s.Text, readSpeaker(s));
         }
       }
     }

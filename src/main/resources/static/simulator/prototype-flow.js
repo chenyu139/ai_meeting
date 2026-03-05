@@ -474,25 +474,59 @@
     }
 
     const payload = pick(msg, "payload") || {};
+    const speakerKeys = ["speaker_id", "speakerId", "SpeakerId", "speaker", "Speaker", "speaker_name", "SpeakerName"];
+    const seen = new Set();
+    const readSpeaker = (obj) => {
+      if (!obj || typeof obj !== "object") {
+        return null;
+      }
+      for (const key of speakerKeys) {
+        const value = obj[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return String(value).trim();
+        }
+      }
+      return null;
+    };
+    const defaultSpeaker = readSpeaker(payload) || readSpeaker(msg);
+    const addLine = (text, speakerId) => {
+      if (typeof text !== "string" || !text.trim()) {
+        return;
+      }
+      const normalizedText = text.trim();
+      const normalizedSpeaker = (speakerId || defaultSpeaker || "").trim();
+      const key = `${normalizedSpeaker}::${normalizedText}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      lines.push({
+        text: normalizedText,
+        speakerId: normalizedSpeaker || null
+      });
+    };
     const candidates = [
       payload.result,
       payload?.stash_result?.text,
-      payload?.output?.sentence?.text,
       payload?.output?.text,
       payload?.result?.text
     ];
 
     for (const text of candidates) {
-      if (typeof text === "string" && text.trim()) {
-        lines.push(text.trim());
+      addLine(text, null);
+    }
+
+    for (const sentence of [payload?.output?.sentence, payload?.sentence, payload?.result]) {
+      if (sentence && typeof sentence === "object") {
+        addLine(sentence.text || sentence.Text, readSpeaker(sentence));
       }
     }
 
     const outputSentences = payload?.output?.sentences;
     if (Array.isArray(outputSentences)) {
       for (const sentence of outputSentences) {
-        if (sentence && typeof sentence.text === "string" && sentence.text.trim()) {
-          lines.push(sentence.text.trim());
+        if (sentence && typeof sentence === "object") {
+          addLine(sentence.text || sentence.Text, readSpeaker(sentence));
         }
       }
     }
@@ -500,8 +534,33 @@
     return lines;
   }
 
-  function appendTranscriptLine(text) {
-    const line = `[${nowTime()}] ${text}\n`;
+  function formatSpeakerLabel(speakerId) {
+    if (speakerId === null || speakerId === undefined) {
+      return "";
+    }
+    const raw = String(speakerId).trim();
+    if (!raw) {
+      return "";
+    }
+    const pureNum = raw.match(/^\d+$/);
+    if (pureNum) {
+      return `说话人${pureNum[0]}`;
+    }
+    const speakerNum = raw.match(/^speaker[_-]?(\d+)$/i);
+    if (speakerNum) {
+      return `说话人${speakerNum[1]}`;
+    }
+    return raw;
+  }
+
+  function appendTranscriptLine(entry) {
+    const text = typeof entry === "string" ? entry : (entry?.text || "");
+    if (!text.trim()) {
+      return;
+    }
+    const speaker = typeof entry === "string" ? "" : formatSpeakerLabel(entry?.speakerId);
+    const speakerPrefix = speaker ? `[${speaker}] ` : "";
+    const line = `[${nowTime()}] ${speakerPrefix}${text}\n`;
     recordTranscript.textContent = (recordTranscript.textContent + line).slice(-50000);
     recordTranscript.scrollTop = recordTranscript.scrollHeight;
   }
@@ -1014,7 +1073,8 @@
     }
     if (typeof value === "object") {
       const preferred = [
-        "title", "topic", "name", "speaker", "time", "timestamp", "decision",
+        "title", "topic", "name", "SpeakerName", "SpeakerId", "speaker_id", "speakerId", "speaker",
+        "time", "timestamp", "decision",
         "action", "owner", "due", "deadline", "summary", "content", "text", "description"
       ];
       const parts = [];
