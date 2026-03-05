@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class IdempotencyRecordEntity {
 
     @TableId(value = "idempotency_key", type = IdType.INPUT)
-    private String key;
+    private String idempotencyKey;
 
     @TableField("endpoint")
     private String endpoint;

@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -141,11 +142,12 @@ public class TingwuResultParser {
     }
 
     private Object loadJson(String url) {
-        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-            return null;
-        }
         try {
+            // Signed OSS URLs contain encoded query params; using URI avoids template re-encoding.
+            ResponseEntity<String> response = restTemplate.getForEntity(URI.create(url), String.class);
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                return null;
+            }
             return objectMapper.readValue(response.getBody(), Object.class);
         } catch (Exception e) {
             return null;
